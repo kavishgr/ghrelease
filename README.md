@@ -61,6 +61,24 @@ echo "sharkdp/bat" | getghrel -list | sort
 
 ![-list](examples/list-flag.jpg)
 
+```console
+➜  /tmp cat tools.txt | getghrel -list | grep -v ^N/A | getghrel -download
+Downloaded and Extracted: macchina-v6.2.1-android-aarch64.tar.gz
+Downloaded and Extracted: ripgrep-14.1.1-aarch64-apple-darwin.tar.gz
+Downloaded and Extracted: macchina-v6.2.1-macos-aarch64.tar.gz
+Downloaded and Extracted: bottom_aarch64-apple-darwin.tar.gz
+Downloaded and Extracted: jless-v0.9.0-aarch64-apple-darwin.zip                ]
+Downloaded and Extracted: hurl-5.0.1-aarch64-apple-darwin.tar.gz
+Downloaded and Extracted: fx_darwin_arm64                 [3s:4s]
+Downloaded and Extracted: k9s_Darwin_arm64.tar.gz
+Downloaded and Extracted: fzf-0.55.0-darwin_arm64.tar.gz
+Downloaded and Extracted: atuin-aarch64-apple-darwin-update
+Downloaded and Extracted: atuin-aarch64-apple-darwin.tar.gz
+
+All Binaries are inside:  /tmp/getghrel
+
+```
+
 
 This will display a list of URLs representing the latest release assets found for each repository.
 
