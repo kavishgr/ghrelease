@@ -10,7 +10,7 @@ Download the latest binary from the [releases](https://github.com/kavishgr/getgh
 
 ### Dependencies
 
-- A GitHub token. By default, the tool will look for the `GITHUB_TOKEN` environment variable. Alternatively, you can also provide one directly on the command line.
+- A GitHub token. By default, it will look for the `GITHUB_TOKEN` environment variable. You can also provide one directly on the command line.
 
 ## Usage
 
@@ -146,12 +146,4 @@ It is useful for releases that require dependencies bundled together in separate
 
 ## TODO
 
-- Add an option to control the search for recent release tags. With this flag, you can choose to include the most recent nightly/unstable releases or one below them with `-list`, or skip them altogether. 
-
-- Add an option to include appimages.
-
 - **Optional**: update the regex or add some sort of backup/rescue regex to include releases that contain only the operating system and not the architecture. Most releases do include both the OS and architecture, I'm mentioning it here because of the neovim(solved now) issue discussed earlier.
-
-## Contributing
-
-If you would like to contribute to getghrel, feel free to fork the repository and submit a pull request. You can also open an issue on the Github repository to report a bug or suggest a feature.
