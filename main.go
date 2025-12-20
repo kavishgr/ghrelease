@@ -21,12 +21,12 @@ func main() {
 		regex          = utils.SetRegex(ost, arch)
 		stdInUrls      = make(chan string)
 		jobs           sync.WaitGroup
-		version        = "0.1.2"
+		version        = "0.1.3"
 	)
 
 	if opts.Version {
 		fmt.Println("getghrel version: ", version)
-		os.Exit(1)
+		os.Exit(0)
 	}
 
 	if token == "" {
