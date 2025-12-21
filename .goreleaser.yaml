@@ -1,6 +1,9 @@
+version: 2
+
 before:
   hooks:
     - go mod tidy
+
 builds:
   -
     ldflags:
@@ -13,10 +16,13 @@ builds:
     goarch:
       - amd64
       - arm64
+
 archives:
-  - format: tar.gz
+  - formats: [ 'tar.gz' ]
+
 snapshot:
-  name_template: "{{ incpatch .Version }}"
+  version_template: "{{ incpatch .Version }}"
+
 changelog:
   sort: asc
   filters:
