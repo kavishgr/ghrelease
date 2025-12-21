@@ -5,9 +5,9 @@ import (
 	"os"
 	"sync"
 
-	"github.com/kavishgr/getghrel/github"
-	"github.com/kavishgr/getghrel/options"
-	"github.com/kavishgr/getghrel/utils"
+	"github.com/kavishgr/ghrelease/github"
+	"github.com/kavishgr/ghrelease/options"
+	"github.com/kavishgr/ghrelease/utils"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 	)
 
 	if opts.Version {
-		fmt.Println("getghrel version: ", version)
+		fmt.Println("ghrelease version: ", version)
 		os.Exit(0)
 	}
 
@@ -33,14 +33,14 @@ func main() {
 		fmt.Println("GITHUB_TOKEN environment variable is not found.")
 		fmt.Println("Nor is -ghtoken provided on the command line.")
 		fmt.Println("")
-		fmt.Println("Run 'getghrel -h'")
-		fmt.Println("Or browse to: 'https://github.com/kavishgr/getghrel'")
+		fmt.Println("Run 'ghrelease -h'")
+		fmt.Println("Or browse to: 'https://github.com/kavishgr/ghrelease'")
 		os.Exit(1)
 	}
 
 	if len(os.Args) == 1 {
 		fmt.Println("No arguments were provided.")
-		fmt.Println("Run: 'getghrel -h'")
+		fmt.Println("Run: 'ghrelease -h'")
 		os.Exit(1)
 	}
 

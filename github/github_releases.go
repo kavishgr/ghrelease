@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/dlclark/regexp2"
 	"github.com/k0kubun/go-ansi"
-	"github.com/kavishgr/getghrel/utils"
+	"github.com/kavishgr/ghrelease/utils"
 	"github.com/schollz/progressbar/v3"
 	"github.com/shurcooL/githubv4"
 	"github.com/tidwall/gjson"

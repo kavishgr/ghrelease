@@ -1,4 +1,4 @@
-module github.com/kavishgr/getghrel
+module github.com/kavishgr/ghrelease
 
 go 1.25.5
 
