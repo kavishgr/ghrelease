@@ -54,13 +54,9 @@ func main() {
 	}
 
 	if opts.Download {
-		_, err := os.Stat(tempdir)
-
-		if os.IsNotExist(err) {
-			err = os.Mkdir(tempdir, 0755)
-			if err != nil {
-				panic(err)
-			}
+		if err := os.MkdirAll(tempdir, 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating directory %s: %v\n", tempdir, err)
+			os.Exit(1)
 		}
 
 		for c := 0; c < opts.Concurrency; c++ {
