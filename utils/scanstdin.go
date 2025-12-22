@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-// scan StdIn and send each line to the apiUrl channel
-
+// ScanStdIn reads lines from standard input and sends each line to the apiUrl channel.
+// The channel is closed when EOF is reached or an error occurs.
 func ScanStdIn(apiUrl chan string) {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
