@@ -113,26 +113,27 @@ func Extractor(src, tempdir string) error {
 			// Open the file content
 			content, err := f.Open()
 			if err != nil {
-				return fmt.Errorf("opening %s: %w", newPath, err)
+				return fmt.Errorf("opening file %s from archive: %w", newPath, err)
 			}
 			defer content.Close()
 
 			// Create the output file
 			newFile, err := os.Create(newFilePath)
 			if err != nil {
-				return fmt.Errorf("creating %s: %w", newPath, err)
+				return fmt.Errorf("creating output file %s: %w", newPath, err)
 			}
 			defer newFile.Close()
 
 			// Copy content
 			_, err = io.Copy(newFile, content)
 			if err != nil {
-				return fmt.Errorf("copying %s: %w", newPath, err)
+				return fmt.Errorf("writing file %s: %w", newPath, err)
 			}
 			return nil
 		})
+
 		if err != nil {
-			return err
+			return fmt.Errorf("extracting archive %s: %w", src, err)
 		}
 	}
 
