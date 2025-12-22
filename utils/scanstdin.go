@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"log"
 	"os"
 )
 
@@ -12,5 +13,10 @@ func ScanStdIn(apiUrl chan string) {
 	for scanner.Scan() {
 		apiUrl <- scanner.Text()
 	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("Error reading stdin: %v\n", err)
+	}
+
 	close(apiUrl)
 }
