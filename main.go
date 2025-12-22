@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/kavishgr/ghrelease/github"
 	"github.com/kavishgr/ghrelease/options"
@@ -44,12 +47,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		fmt.Println("\nCancelling operations...")
+		cancel()
+	}()
+
 	go utils.ScanStdIn(stdInUrls)
 
 	if opts.List {
 		for c := 0; c < opts.Concurrency; c++ {
 			jobs.Add(1)
-			go github.FetchGithubReleaseUrl(stdInUrls, &jobs, regex, token)
+			go github.FetchGithubReleaseUrl(ctx, stdInUrls, &jobs, regex, token)
 		}
 	}
 
@@ -61,11 +76,17 @@ func main() {
 
 		for c := 0; c < opts.Concurrency; c++ {
 			jobs.Add(1)
-			go github.DownloadRelease(stdInUrls, &jobs, token, tempdir, skipextraction)
+			go github.DownloadRelease(ctx, stdInUrls, &jobs, token, tempdir, skipextraction)
 		}
 	}
 
 	jobs.Wait() // wait for above jobs to finish
+
+	// check if operation was cancelled
+	if ctx.Err() != nil {
+		fmt.Println("Operation cancelled. Partial files removed.")
+		os.Exit(130) // exit code for SIGINT
+	}
 
 	switch {
 

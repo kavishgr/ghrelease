@@ -20,7 +20,18 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 )
+
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConns:        10,
+		IdleConnTimeout:     90 * time.Second,
+		DisableCompression:  true,
+		MaxIdleConnsPerHost: 10,
+	},
+}
 
 /*
 - Check if a given string is a valid URL
@@ -81,7 +92,7 @@ func craftGithubReq(ghtoken, url string) *http.Request {
 	}
 	req.Header.Add("Authorization", fmt.Sprintf("token %s", ghtoken))
 	// req.Header.Add("X-GitHub-Api-Version", "2022-11-28")
-	req.Header.Add("User-Agent", "getghrel-cli")
+	req.Header.Add("User-Agent", "ghrelease-cli")
 	return req
 }
 
@@ -93,7 +104,7 @@ func craftGithubReq(ghtoken, url string) *http.Request {
     saves the downloaded files to a temporary directory
     and optionally extracts the files if specified.
 */
-func DownloadRelease(urlsChan chan string, job *sync.WaitGroup, ghtoken, tempdir string, skipextraction bool) {
+func DownloadRelease(ctx context.Context, urlsChan chan string, job *sync.WaitGroup, ghtoken, tempdir string, skipextraction bool) {
 
 	defer job.Done()
 
@@ -106,22 +117,24 @@ func DownloadRelease(urlsChan chan string, job *sync.WaitGroup, ghtoken, tempdir
 		src := filepath.Join(tempdir, file)
 
 		req := craftGithubReq(ghtoken, u)
-		client := http.Client{}
-		resp, err := client.Do(req)
+		req = req.WithContext(ctx)
+
+		resp, err := httpClient.Do(req)
 		if err != nil {
-			log.Fatal(err)
+			// Don't log if context was cancelled
+			if ctx.Err() == nil {
+				log.Printf("Failed to download %s: %v", file, err)
+			}
+			return
 		}
 		defer resp.Body.Close()
 
-		f, _ := os.OpenFile(src, os.O_CREATE|os.O_WRONLY, 0644)
+		f, err := os.OpenFile(src, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Printf("Failed to create file %s, %v", file, err)
+			return
+		}
 		defer f.Close()
-
-		// bar := progressbar.DefaultBytes(
-		// 	resp.ContentLength,
-		// 	file,
-		// )
-
-		// io.Copy(io.MultiWriter(f, bar), resp.Body)
 
 		bar := progressbar.NewOptions64(resp.ContentLength,
 			progressbar.OptionSetWriter(ansi.NewAnsiStdout()),
@@ -138,8 +151,30 @@ func DownloadRelease(urlsChan chan string, job *sync.WaitGroup, ghtoken, tempdir
 				BarStart:      "[",
 				BarEnd:        "]",
 			}))
+		defer bar.Close()
 
-		io.Copy(io.MultiWriter(f, bar), resp.Body)
+		// Copy with error handling
+		_, err = io.Copy(io.MultiWriter(f, bar), resp.Body)
+
+		//check if cancelled during download
+		if ctx.Err() != nil {
+			bar.Reset()
+			bar.Finish()
+			f.Close()
+			os.Remove(src) // Remove partial file
+			return
+		}
+
+		// Check for download errors
+		if err != nil {
+			log.Printf("Download failed for %s: %v", file, err)
+			bar.Reset()
+			bar.Finish()
+			f.Close()
+			os.Remove(src) // Remove corrupted file
+			return
+		}
+
 		bar.Reset()
 		bar.Finish()
 
@@ -150,13 +185,17 @@ func DownloadRelease(urlsChan chan string, job *sync.WaitGroup, ghtoken, tempdir
 		}
 
 		fmt.Printf("Downloaded and Extracted: %s\n", file)
-		bar.Close()
 		utils.Extractor(src, tempdir)
 	}
 
 	// iterate over urls sent by stdin
 	for u := range urlsChan {
-		downloadAndProcessFile(u)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			downloadAndProcessFile(u)
+		}
 	}
 }
 
@@ -213,11 +252,13 @@ reads the response body,
 and returns it as a byte slice containing
 the information about the latest release tag.
 */
-func getTagByName(ghtoken, ownerNrepo string) []byte {
+func getTagByName(ghtoken, ownerNrepo string) ([]byte, error) {
 	// GitHub API token
 
-	var tagname string
 	owner, name := split(ownerNrepo) // owner and name of the repo
+	if owner == "" || name == "" {
+		return nil, fmt.Errorf("invalid repository format: %s", ownerNrepo)
+	}
 
 	// Create an OAuth2 token source
 	src := oauth2.StaticTokenSource(
@@ -258,15 +299,20 @@ func getTagByName(ghtoken, ownerNrepo string) []byte {
 	// Execute the GraphQL query
 	err := gqlClient.Query(context.Background(), &query, variables)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("GraphQL query failed: %w", err)
 	}
 
 	// Access the query result
-	for _, edge := range query.Repository.Refs.Edges {
-		// fmt.Println("Tag Name:", edge.Node.Name)
-		tagname = edge.Node.Name
-		// fmt.Println(tagname)
+	// var tagname string
+	// for _, edge := range query.Repository.Refs.Edges {
+	// 	// fmt.Println("Tag Name:", edge.Node.Name)
+	// 	tagname = edge.Node.Name
+	// 	// fmt.Println(tagname)
+	// }
+	if len(query.Repository.Refs.Edges) == 0 {
+		return nil, fmt.Errorf("no tags found for %s", ownerNrepo)
 	}
+	tagname := query.Repository.Refs.Edges[0].Node.Name
 
 	tagUrl := fmt.Sprintf("https://api.github.com/repos%s/releases/tags/%s", ownerNrepo, tagname)
 	// fmt.Println(tagUrl)
@@ -276,19 +322,14 @@ func getTagByName(ghtoken, ownerNrepo string) []byte {
 	client := http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("fetching tag release: %w", err)
 	}
-	body, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("reading tag response: %w", err)
 	}
-	return body
-}
-
-// verify if a map is empty or not
-func mapIsEmpty(m map[string]int) bool {
-	return len(m) == 0 // returns true if map is empty
+	return body, nil
 }
 
 /* - fetch the asset urls from latest release for each url or username/repo (used by -list)
@@ -333,14 +374,15 @@ indicate that no relevant assets were found.
 - The main loop of the function continuously receives URLs
 from urlsChan and processes them using the fetch function.
 */
-func FetchGithubReleaseUrl(urlsChan chan string, job *sync.WaitGroup, regex, ghtoken string) {
+func FetchGithubReleaseUrl(ctx context.Context, urlsChan chan string, job *sync.WaitGroup, regex, ghtoken string) {
 
 	defer job.Done()
 	// var github_release []string
 	// github_release := make(map[string]int)
 
 	fetch := func(u string) {
-		github_release := make(map[string]int)
+		// github_release := make(map[string]int)
+		github_releases := make(map[string]struct{})
 		// fmt.Println(u)
 		// map to keep assets
 		// sometimes there are multiple assets for same os/architecture
@@ -352,24 +394,32 @@ func FetchGithubReleaseUrl(urlsChan chan string, job *sync.WaitGroup, regex, ght
 
 		// HTTP client starts
 		req := craftGithubReq(ghtoken, githubUrl) // craft request with token and valid api url
-		client := http.Client{}
-		resp, err := client.Do(req)
+		req = req.WithContext(ctx)
+
+		resp, err := httpClient.Do(req)
 		if err != nil {
-			log.Fatal(err)
+			if ctx.Err() == nil {
+				log.Printf("Failed to fetch %s: %v", u, err)
+			}
+			return
 		}
-		body, err := io.ReadAll(resp.Body)
 		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Failed to read response for %s: %v", u, err)
 		}
-		// HTTP client ends
 
 		message := gjson.Get(fmt.Sprintf("%s", body), "message")
 		// if the message is "Not Found"
 		// release/asset section is EMPTY or is using tags instead of latest release
 		if message.Str == "Not Found" {
 			// fetch assets for most recent tag
-			body = getTagByName(ghtoken, ownerNrepo)
+			body, err = getTagByName(ghtoken, ownerNrepo)
+			if err != nil {
+				fmt.Println("N/A:", u)
+				return
+			}
 		}
 
 		// fetch all the browser_download_url keys which contains the asset urls
@@ -383,25 +433,33 @@ func FetchGithubReleaseUrl(urlsChan chan string, job *sync.WaitGroup, regex, ght
 			// fmt.Println(asset_url)
 			isMatch, _ := re2.MatchString(asset_url)
 
-			if isMatch == true {
-				github_release[asset_url] = 1
+			// if isMatch == true {
+			// 	github_release[asset_url] = 1
+			// }
+			if isMatch {
+				github_releases[asset_url] = struct{}{}
 			}
 
 			return true // keep iterating in case there are multiple urls that match
 		})
 
-		if mapIsEmpty(github_release) {
+		if len(github_releases) == 0 {
 			fmt.Println("N/A:", u)
 		} else {
-			for k, _ := range github_release {
+			for release := range github_releases {
 				// fmt.Println("URL found:", k)
-				fmt.Println(k)
+				fmt.Println(release)
 			}
 		}
 
 	}
 
 	for u := range urlsChan {
-		fetch(u)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			fetch(u)
+		}
 	}
 }
