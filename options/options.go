@@ -64,7 +64,7 @@ func ParseFlags() options {
 			"",
 			"\t Download the releases",
 			"\t Default directory in which the release will be downloaded is '/tmp/getghrel'",
-			"\t If the release is compressed or in an archive format, the tool will automatically", 
+			"\t If the release is compressed or in an archive format, the tool will automatically",
 			"\t extract and unpack it no matter how it's compressed or archived",
 			"\t and keep only the binary.\n",
 			"\t Example: cat releases.txt | getghrel -download",
@@ -97,7 +97,7 @@ func ParseFlags() options {
 	flag.IntVar(&opts.Concurrency, "con", 2, "")
 	default_ghtoken := os.Getenv("GITHUB_TOKEN")
 	flag.StringVar(&opts.GHToken, "ghtoken", default_ghtoken, "")
-	flag.StringVar(&opts.TempDir, "tempdir", "/tmp/getghrel", "")
+	flag.StringVar(&opts.TempDir, "tempdir", "/tmp/ghrelease", "")
 	flag.BoolVar(&opts.Version, "version", false, "")
 
 	flag.Parse()
