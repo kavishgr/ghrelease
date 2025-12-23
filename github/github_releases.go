@@ -17,7 +17,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -33,13 +32,14 @@ var httpClient = &http.Client{
 	},
 }
 
-/*
-- Check if a given string is a valid URL
-got the regex from chatgpt
-*/
-func isValidURL(url string) bool {
-	urlRegex := regexp.MustCompile(`^(https?|ftp)://[^\s/$.?#].[^\s]*$`)
-	return urlRegex.MatchString(url)
+func isValidURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return (u.Scheme == "http" || u.Scheme == "https") &&
+		u.Host != "" &&
+		strings.Contains(u.Host, "github.com")
 }
 
 /*
