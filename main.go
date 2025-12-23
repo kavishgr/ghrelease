@@ -94,11 +94,13 @@ func main() {
 		return
 
 	case skipextraction:
-		fmt.Println("Archives are inside: ", tempdir)
+		fmt.Println("Archives saved in: ", tempdir)
 
 	default:
-		cleanup(tempdir)
+		if err := cleanup(tempdir); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: cleanup failed in %s: %v\n", opts.TempDir, err)
+		}
 		fmt.Println("")
-		fmt.Println("All Binaries are inside: ", tempdir)
+		fmt.Println("Binaries extracted to: ", tempdir)
 	}
 }
