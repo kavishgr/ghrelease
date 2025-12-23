@@ -213,11 +213,13 @@ it removes it before performing the split.
 and repository names as separate strings.
 */
 func split(ownerNrepo string) (string, string) {
-	var str string
-	if strings.HasPrefix(ownerNrepo, "/") {
-		str = strings.TrimPrefix(ownerNrepo, "/")
+	ownerNrepo = strings.TrimPrefix(ownerNrepo, "/")
+	parts := strings.Split(ownerNrepo, "/")
+
+	if len(parts) != 2 {
+		return "", ""
 	}
-	parts := strings.Split(str, "/")
+
 	return parts[0], parts[1]
 }
 
