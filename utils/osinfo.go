@@ -4,8 +4,9 @@ import (
 	"runtime"
 )
 
+// OsInfo returns the current operating system and architecture.
+// Returns: (os, arch) where os is like "linux", "darwin" and
+// arch is like "amd64", "arm64"
 func OsInfo() (string, string) {
-	os := runtime.GOOS
-	arch := runtime.GOARCH
-	return os, arch
+	return runtime.GOOS, runtime.GOARCH
 }
