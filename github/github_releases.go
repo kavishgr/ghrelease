@@ -376,6 +376,34 @@ indicate that no relevant assets were found.
 - The main loop of the function continuously receives URLs
 from urlsChan and processes them using the fetch function.
 */
+
+// ValidateToken checks if the GitHub token is valid by making a test API call.
+func ValidateToken(token string) error {
+	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Add("Authorization", "token "+token)
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("cannot reach GitHub API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case 200:
+		return nil // Valid token
+	case 401:
+		return fmt.Errorf("invalid or expired token (401 Unauthorized)")
+	case 403:
+		return fmt.Errorf("token is valid but lacks required permissions (403 Forbidden)")
+	default:
+		return fmt.Errorf("unexpected response from GitHub API: %d %s", resp.StatusCode, resp.Status)
+	}
+}
+
 func FetchGithubReleaseUrl(ctx context.Context, urlsChan chan string, job *sync.WaitGroup, regex, ghtoken string) {
 
 	defer job.Done()

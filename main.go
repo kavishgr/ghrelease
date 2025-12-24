@@ -41,6 +41,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := github.ValidateToken(token); err != nil {
+		fmt.Fprintf(os.Stderr, "Github token validation failed, %v\n", err)
+		fmt.Fprintln(os.Stderr, "Please check your toekn and try again.")
+		os.Exit(1)
+	}
+
 	if len(os.Args) == 1 {
 		fmt.Println("No arguments were provided.")
 		fmt.Println("Run: 'ghrelease -h'")
