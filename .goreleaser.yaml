@@ -1,22 +1,30 @@
+version: 2
+
 before:
   hooks:
     - go mod tidy
+
 builds:
   -
     ldflags:
       - -s -w 
     env:
       - CGO_ENABLED=0
+    id: ghrelease
+    binary: ghrelease
     goos:
       - linux
       - darwin
     goarch:
       - amd64
       - arm64
+
 archives:
-  - format: tar.gz
+  - formats: [ 'tar.gz' ]
+
 snapshot:
-  name_template: "{{ incpatch .Version }}"
+  version_template: "{{ incpatch .Version }}"
+
 changelog:
   sort: asc
   filters:
