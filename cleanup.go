@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-// isBinary checks if the file at the given path is a valid binary
-// for the current operating system.
+// isBinary checks if a file is a valid executable binary for the current OS.
+// Returns true if the file is a valid ELF (Linux) or Mach-O (macOS) binary.
 func isBinary(path string, verifyFile func(*os.File) error) bool {
 	f, err := os.Open(path)
 	if err != nil {
@@ -22,6 +22,10 @@ func isBinary(path string, verifyFile func(*os.File) error) bool {
 	return verifyFile(f) == nil
 }
 
+// cleanup removes non-binary files from tempdir and moves all binaries to the root directory.
+// It performs two passes:
+//  1. Find all binaries in subdirectories and move them to tempdir root
+//  2. Remove all non-binary files and empty subdirectories
 func cleanup(tempdir string) error {
 	var verifyFile func(file *os.File) error
 

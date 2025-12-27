@@ -4,13 +4,16 @@ import (
 	"log"
 )
 
+// SetRegex returns a regex pattern for matching release assets based on the
+// operating system and architecture. The pattern filters out checksums, SBOMs,
+// package files, and releases for other platforms.
 func SetRegex(ost, arch string) string {
 	// Pattern breakdown:
 	// (?i) - case insensitive
 	// (?=.*pattern) - positive lookahead (must contain)
 	// (?!.*pattern) - negative lookahead (must NOT contain)
 
-	// Files we want to EXCLUDE:
+	// Files to EXCLUDE:
 	// - Checksums: .sha256, .sha256sum, checksums.txt
 	// - SBOMs: .sbom
 	// - Package formats: .rpm, .deb

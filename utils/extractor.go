@@ -10,6 +10,11 @@ import (
 	"strings"
 )
 
+// Extractor extracts archive files to tempdir by default.
+// Supports multiple compression and archive formats including tar, zip, 7z, rar,
+// and various compressed tar formats. The top-level directory is stripped from
+// extracted files. Returns an error if extraction fails or if a path traversal
+// attempt is detected.
 func Extractor(src, tempdir string) error {
 	reader, err := os.Open(src)
 	if err != nil {

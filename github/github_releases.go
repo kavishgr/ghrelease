@@ -32,6 +32,7 @@ var httpClient = &http.Client{
 	},
 }
 
+// isValidURL checks if the provided string is a valid HTTP/HTTPS GitHub URL.
 func isValidURL(rawURL string) bool {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -42,29 +43,9 @@ func isValidURL(rawURL string) bool {
 		strings.Contains(u.Host, "github.com")
 }
 
-/*
-	 	Takes a GitHub URL as input and returns two strings.
-	 	It aims to standardize the URL format
-	 	to match the API endpoint for fetching the latest release
-	 	of a GitHub repository.
-
-		- It initializes apiDomain and apiDomainSuffix variables with fixed parts
-		of the API URL.
-
-		- It parses the input githubUrl using the url.Parse function
-		to extract path information.
-
-		- If the input URL is valid (using the isValidURL function),
-		it constructs the API URL by combining apiDomain, the parsed path,
-		and apiDomainSuffix.
-
-		- If the input URL is not valid,
-		it assumes the input is a GitHub repository name
-		and constructs the API URL accordingly.
-
-		- It then returns the standardized API URL
-		and the extracted repository path.
-*/
+// fixUrl converts a GitHub repository reference into a GitHub API URL for releases.
+// Accepts either a full URL (https://github.com/owner/repo) or short form (owner/repo).
+// Returns the API URL and the repository path.
 func fixUrl(githubUrl string) (string, string) {
 	apiDomain := "https://api.github.com/repos"
 	apiDomainSuffix := "/releases/latest"
@@ -80,11 +61,8 @@ func fixUrl(githubUrl string) (string, string) {
 	return result, fortag
 }
 
-/*
-- Creates an authenticated HTTP GET request for the GitHub API
-by setting the required headers,
-including the GitHub token and user agent
-*/
+// craftGithubReq creates an authenticated HTTP GET request for the GitHub API.
+// The request includes the GitHub token and appropriate headers.
 func craftGithubReq(ghtoken, url string) *http.Request {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -96,14 +74,8 @@ func craftGithubReq(ghtoken, url string) *http.Request {
 	return req
 }
 
-/*
-  - Downloads and processes files
-    concurrently from a list of URLs provided through the urlsChan.
-
-  - It uses a GitHub token for authentication
-    saves the downloaded files to a temporary directory
-    and optionally extracts the files if specified.
-*/
+// DownloadRelease downloads release assets from URLs received via urlsChan.
+// Files are saved to tempdir and are extracted by default unless skipextraction is true.
 func DownloadRelease(ctx context.Context, urlsChan chan string, job *sync.WaitGroup, ghtoken, tempdir string, skipextraction bool) {
 
 	defer job.Done()
@@ -199,19 +171,8 @@ func DownloadRelease(ctx context.Context, urlsChan chan string, job *sync.WaitGr
 	}
 }
 
-/*
-- Takes a string in the format "owner/repo" as input
-and returns two strings.
-
-- It extracts the owner and repository names
-from the input string by splitting it at the '/' character.
-
-- If the input starts with a '/',
-it removes it before performing the split.
-
-- The function then returns the extracted owner
-and repository names as separate strings.
-*/
+// split extracts the owner and repository name from "owner/repo" format.
+// Returns empty strings if the format is invalid.
 func split(ownerNrepo string) (string, string) {
 	ownerNrepo = strings.TrimPrefix(ownerNrepo, "/")
 	parts := strings.Split(ownerNrepo, "/")
@@ -223,37 +184,8 @@ func split(ownerNrepo string) (string, string) {
 	return parts[0], parts[1]
 }
 
-/*
-- Retrieves information about a GitHub repository's latest release tag
-using the GitHub GraphQL API.
-It takes a GitHub API token (`ghtoken`)
-and a string in the format "owner/repo" (`ownerNrepo`)
-representing the repository's owner and name.
-
-- The function uses the `split` function to separate
-the owner and repository names from the input string.
-It then sets up an OAuth2 token source
-and an HTTP client to create a GitHub GraphQL client.
-
-- Next, the function defines a GraphQL query to fetch
-the latest release tag for the given repository.
-The query specifies the required fields,
-such as the name of the tag and sorting based on commit date.
-
-- After executing the GraphQL query,
-the function extracts the latest tag name
-from the query result.
-It constructs the URL for the GitHub API
-endpoint related to the retrieved tag.
-
-- Using the `craftGithubReq` function,
-it creates an HTTP GET request
-with the provided GitHub token and tag URL.
-The function then sends the request,
-reads the response body,
-and returns it as a byte slice containing
-the information about the latest release tag.
-*/
+// getTagByName retrieves release information for the most recent tag of a repository.
+// Used as a fallback when a repository doesn't have a "latest" release.
 func getTagByName(ghtoken, ownerNrepo string) ([]byte, error) {
 	// GitHub API token
 
@@ -334,49 +266,6 @@ func getTagByName(ghtoken, ownerNrepo string) ([]byte, error) {
 	return body, nil
 }
 
-/* - fetch the asset urls from latest release for each url or username/repo (used by -list)
-   - the regex is used to find the required asset url for your os/arch
-   - return/print found urls for each asset that matched
-   - repos that do not have a release for the os and arch will be printed like so:
-   - N/A: https://github.com/user/repo
-*/
-
-/*
-- Fetches the download URLs for specific assets from GitHub releases.
-It uses a regular expression (regex) to filter URLs
-based on the target OS/architecture.
-The function takes URLs from the urlsChan channel
-and uses a provided GitHub API token (ghtoken)
-to make API requests to fetch release information.
-
-- The function starts by defining an inner function fetch responsible
-for handling the URL processing.
-Within this function, it prepares the API URL
-using fixUrl and constructs an HTTP GET request
-with the provided GitHub token using craftGithubReq.
-It then sends the request and reads the response body
-containing release information.
-
-- The function checks if the response contains a "Not Found" message,
-indicating that the repository may be using tags
-instead of the latest release. In such cases,
-it fetches the assets for the most recent tag
-using the getTagByName function.
-
-- Next, the function uses gjson to parse the response body
-and extract the URLs of the assets.
-It applies the provided regular expression
-to filter the URLs based on the target OS/architecture.
-URLs that match the regex are stored in the github_release map.
-
-- If there are matching URLs, they are printed to the console.
-If there are no matching URLs, "N/A" is printed to
-indicate that no relevant assets were found.
-
-- The main loop of the function continuously receives URLs
-from urlsChan and processes them using the fetch function.
-*/
-
 // ValidateToken checks if the GitHub token is valid by making a test API call.
 func ValidateToken(token string) error {
 	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
@@ -404,6 +293,9 @@ func ValidateToken(token string) error {
 	}
 }
 
+// FetchGithubReleaseUrl fetches download URLs for release assets that match
+// the OS/architecture regex pattern. Reads repository URLs from urlsChan and
+// outputs matching asset URLs to stdout.
 func FetchGithubReleaseUrl(ctx context.Context, urlsChan chan string, job *sync.WaitGroup, regex, ghtoken string) {
 
 	defer job.Done()
