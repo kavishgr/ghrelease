@@ -12,7 +12,53 @@ Download the latest binary from the [releases](https://github.com/kavishgr/ghrel
 
 ### Dependencies
 
-- Only a GitHub token is required. By default, the tool will look for the `GITHUB_TOKEN` env or you can provide one directly on the command line.
+A GitHub personal access token is required.
+
+<details>
+<summary>Set the token</summary>
+<br>
+
+**Method 1: Store in shell config file (Recommended)**
+
+Add to ~/.bashrc, ~/.zshrc, or ~/.profile:
+
+```bash
+echo "export GITHUB_TOKEN='ghp_xxxxxxxxxxxxx'" >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Method 2: Read from file**
+
+Save token to a file:
+
+```bash
+echo 'ghp_xxxxxxxxxxxxx' > ~/.github-token
+chmod 600 ~/.github-token
+```
+
+Add to shell config:
+
+```bash
+echo "export GITHUB_TOKEN=\$(cat ~/.github-token)" >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Method 3: Set for current session only**
+
+Use a space before the command to avoid shell history (works in bash/zsh):
+
+```bash
+ export GITHUB_TOKEN='ghp_xxxxxxxxxxxxx'
+```
+
+**Verify it's set:**
+```bash
+echo $GITHUB_TOKEN
+```
+</details>
+
+**Note:** Avoid typing `export GITHUB_TOKEN=...` directly in your terminal as it will be saved to shell history.
+
 
 ## Usage
 
@@ -27,10 +73,6 @@ All the supported flags:
             Will print the latest release for your OS and Architecture.
 
 -con     <int> set the concurrency level (default: 2)
-
--ghtoken <string> provide a GITHUB TOKEN
-            Default is the GITHUB_TOKEN environment variable.
-            Example: cat urls.txt | ghrelease -list -ghtoken 'YOUR TOKEN' | sort
 
 -download will download and extract the binary inside `/tmp/ghrelease`
             Example: cat urls_from_list_results.txt | ghrelease -download 

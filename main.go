@@ -18,7 +18,7 @@ func main() {
 	var (
 		opts           = options.ParseFlags()
 		skipextraction = opts.SkipExtraction
-		token          = opts.GHToken
+		token          = os.Getenv("GITHUB_TOKEN")
 		tempdir        = opts.TempDir
 		ost, arch      = utils.OsInfo()
 		regex          = utils.SetRegex(ost, arch)
@@ -34,8 +34,6 @@ func main() {
 
 	if token == "" {
 		fmt.Println("GITHUB_TOKEN environment variable is not found.")
-		fmt.Println("Nor is -ghtoken provided on the command line.")
-		fmt.Println("")
 		fmt.Println("Run 'ghrelease -h'")
 		fmt.Println("Or browse to: 'https://github.com/kavishgr/ghrelease'")
 		os.Exit(1)

@@ -4,7 +4,6 @@ import (
 	"flag"
 	// "fmt"
 	"github.com/mitchellh/colorstring"
-	"os"
 	"strings"
 )
 
@@ -13,7 +12,6 @@ type options struct {
 	Download       bool
 	SkipExtraction bool
 	Concurrency    int
-	GHToken        string
 	TempDir        string
 	Version        bool
 }
@@ -54,12 +52,6 @@ func ParseFlags() options {
 			"\t Example: cat urls.txt | getghrel -list -con 3 | tee releases.txt",
 			"\t Example: cat releases.txt | getghrel -download -con 3",
 			"",
-			"  [light_cyan]-ghtoken[reset]",
-			"",
-			"\t Specify your GITHUB TOKEN",
-			"\t Default is the GIHUB_TOKEN environment variable.\n",
-			"\t Example: cat urls.txt | getghrel -list -ghtoken 'YOUR TOKEN'",
-			"",
 			"  [light_cyan]-download[reset]",
 			"",
 			"\t Download the releases",
@@ -95,8 +87,6 @@ func ParseFlags() options {
 	flag.BoolVar(&opts.List, "list", false, "")
 	flag.BoolVar(&opts.SkipExtraction, "skipextraction", false, "")
 	flag.IntVar(&opts.Concurrency, "con", 2, "")
-	default_ghtoken := os.Getenv("GITHUB_TOKEN")
-	flag.StringVar(&opts.GHToken, "ghtoken", default_ghtoken, "")
 	flag.StringVar(&opts.TempDir, "tempdir", "/tmp/ghrelease", "")
 	flag.BoolVar(&opts.Version, "version", false, "")
 
