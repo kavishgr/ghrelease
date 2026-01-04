@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 
@@ -20,8 +21,6 @@ func main() {
 		skipextraction = opts.SkipExtraction
 		token          = os.Getenv("GITHUB_TOKEN")
 		tempdir        = opts.TempDir
-		ost, arch      = utils.OsInfo()
-		regex          = utils.SetRegex(ost, arch)
 		stdInUrls      = make(chan string)
 		jobs           sync.WaitGroup
 		version        = "0.1.3"
@@ -39,7 +38,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := github.ValidateToken(token); err != nil {
+	client, err := github.NewClient(token, runtime.GOOS, runtime.GOARCH)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating client %s\n", err)
+		os.Exit(1)
+	}
+
+	if err := client.ValidateToken(); err != nil {
 		fmt.Fprintf(os.Stderr, "Github token validation failed, %v\n", err)
 		fmt.Fprintln(os.Stderr, "Please check your toekn and try again.")
 		os.Exit(1)
@@ -68,7 +73,7 @@ func main() {
 	if opts.List {
 		for c := 0; c < opts.Concurrency; c++ {
 			jobs.Add(1)
-			go github.FetchGithubReleaseUrl(ctx, stdInUrls, &jobs, regex, token)
+			go client.FetchGithubReleaseURLs(ctx, stdInUrls, &jobs)
 		}
 	}
 
@@ -80,7 +85,7 @@ func main() {
 
 		for c := 0; c < opts.Concurrency; c++ {
 			jobs.Add(1)
-			go github.DownloadRelease(ctx, stdInUrls, &jobs, token, tempdir, skipextraction)
+			go client.DownloadReleases(ctx, stdInUrls, &jobs, tempdir, skipextraction)
 		}
 	}
 
@@ -93,13 +98,10 @@ func main() {
 	}
 
 	switch {
-
 	case opts.List:
 		return
-
 	case skipextraction:
 		fmt.Println("Archives saved in: ", tempdir)
-
 	default:
 		if err := cleanup(tempdir); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: cleanup failed in %s: %v\n", opts.TempDir, err)
