@@ -39,20 +39,20 @@ func ParseFlags() options {
 			"For more examples, browse to: https://github.com/kavishgr/getghrel",
 			"",
 			"Options:",
-			"  [light_cyan]-list[reset]",
+			"  [light_cyan]-list, -l[reset]",
 			"",
 			"\tWill list all the release/releases found for your OS and Architecture.\n",
-			"\tExample: cat urls.txt | getghrel -list | sort",
+			"\tExample: cat urls.txt | getghrel -l | sort",
 			"\tExample: echo 'https://github.com/sharkdp/bat' | getghrel -list | sort",
 			"\tExample: echo 'sharkdp/bat' | getghrel -list | sort",
 			"",
-			"  [light_cyan]-con[reset]",
+			"  [light_cyan]-con, -c[reset]",
 			"",
 			"\t Set the concurrency level (default: 2)\n",
 			"\t Example: cat urls.txt | getghrel -list -con 3 | tee releases.txt",
 			"\t Example: cat releases.txt | getghrel -download -con 3",
 			"",
-			"  [light_cyan]-download[reset]",
+			"  [light_cyan]-download, -d[reset]",
 			"",
 			"\t Download the releases",
 			"\t Default directory in which the release will be downloaded is '/tmp/getghrel'",
@@ -62,17 +62,17 @@ func ParseFlags() options {
 			"\t Example: cat releases.txt | getghrel -download",
 			"\t Example: cat releases.txt | getghrel -download -tempdir '/tmp/test'",
 			"",
-			"  [light_cyan]-skipextraction[reset]",
+			"  [light_cyan]-skipextraction, -s[reset]",
 			"",
 			"\t Skip the extraction/unpack process\n",
 			"\t Example: echo \"neovim/neovim\" | getghrel -list | getghrel -download -skipextraction",
 			"",
-			"  [light_cyan]-tempdir[reset] ",
+			"  [light_cyan]-tempdir, -t[reset] ",
 			"",
 			"\t Specify a temporary directory to download/extract the binaries\n",
 			"\t Example: cat releases.txt | getghrel -download -tempdir '/tmp/test'",
 			"",
-			"  [light_cyan]-version[reset]",
+			"  [light_cyan]-version, -v[reset]",
 			"\t Print version\n",
 			"",
 		}
@@ -84,11 +84,22 @@ func ParseFlags() options {
 
 	opts := options{}
 	flag.BoolVar(&opts.Download, "download", false, "")
+	flag.BoolVar(&opts.Download, "d", false, "")
+
 	flag.BoolVar(&opts.List, "list", false, "")
+	flag.BoolVar(&opts.List, "l", false, "")
+
 	flag.BoolVar(&opts.SkipExtraction, "skipextraction", false, "")
+	flag.BoolVar(&opts.SkipExtraction, "s", false, "")
+
 	flag.IntVar(&opts.Concurrency, "con", 2, "")
+	flag.IntVar(&opts.Concurrency, "c", 2, "")
+
 	flag.StringVar(&opts.TempDir, "tempdir", "/tmp/ghrelease", "")
+	flag.StringVar(&opts.TempDir, "t", "/tmp/ghrelease", "")
+
 	flag.BoolVar(&opts.Version, "version", false, "")
+	flag.BoolVar(&opts.Version, "v", false, "")
 
 	flag.Parse()
 
