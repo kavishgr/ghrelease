@@ -12,6 +12,7 @@ import (
 	"github.com/kavishgr/ghrelease/github"
 	"github.com/kavishgr/ghrelease/options"
 	"github.com/kavishgr/ghrelease/utils"
+	"github.com/vbauerster/mpb/v8"
 )
 
 func main() {
@@ -75,6 +76,7 @@ func main() {
 			jobs.Add(1)
 			go client.FetchGithubReleaseURLs(ctx, stdInUrls, &jobs)
 		}
+		jobs.Wait()
 	}
 
 	if opts.Download {
@@ -83,13 +85,17 @@ func main() {
 			os.Exit(1)
 		}
 
+		p := mpb.NewWithContext(ctx, mpb.WithOutput(os.Stderr))
+
 		for c := 0; c < opts.Concurrency; c++ {
 			jobs.Add(1)
-			go client.DownloadReleases(ctx, stdInUrls, &jobs, tempdir, skipextraction)
+			go client.DownloadReleases(p, ctx, stdInUrls, &jobs, tempdir, skipextraction)
 		}
+		jobs.Wait()
+		p.Wait()
 	}
 
-	jobs.Wait() // wait for above jobs to finish
+	// jobs.Wait() // wait for above jobs to finish
 
 	// check if operation was cancelled
 	if ctx.Err() != nil {
@@ -103,10 +109,14 @@ func main() {
 	case skipextraction:
 		fmt.Println("Archives saved in: ", tempdir)
 	default:
-		if err := cleanup(tempdir); err != nil {
+		if err := utils.Cleanup(tempdir); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: cleanup failed in %s: %v\n", opts.TempDir, err)
 		}
-		fmt.Println("")
+		fmt.Println()
 		fmt.Println("Binaries extracted to: ", tempdir)
 	}
+	downloaded, failed := github.GetDownloadStats()
+	fmt.Println()
+	fmt.Printf("Summary: %d downloaded, %d failed\n", downloaded, failed)
+	fmt.Println()
 }
