@@ -1,34 +1,77 @@
 version: 2
 
+project_name: ghrelease
+
 before:
   hooks:
     - go mod tidy
 
 builds:
-  -
-    ldflags:
-      - -s -w 
+  - id: ghrelease
+    binary: ghrelease
     env:
       - CGO_ENABLED=0
-    id: ghrelease
-    binary: ghrelease
     goos:
       - linux
       - darwin
     goarch:
       - amd64
       - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
 
 archives:
-  - formats: [ 'tar.gz' ]
+  - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    formats: [ 'tar.gz' ]
 
-snapshot:
-  version_template: "{{ incpatch .Version }}"
+brews:
+  - name: ghrelease
+    repository:
+      owner: kavishgr
+      name: homebrew-tap
+    directory: Formula
+    homepage: "https://github.com/kavishgr/ghrelease"
+    description: "GitHub release downloader and extractor"
+    license: "MIT"
+    # This matches the env variable we will set in release.yml
+    token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+
+# Configures the GitHub release page
+release:
+  github:
+    owner: kavishgr
+    name: ghrelease
+  # 'auto' marks as pre-release if the tag has a suffix like -rc1
+  prerelease: auto
+  make_latest: true
 
 changelog:
   sort: asc
+  # Groups your commits into logical sections on GitHub
+  groups:
+    - title: 'New Features'
+      regexp: "^feat"
+      order: 0
+    - title: 'Refactors & Improvements'
+      regexp: "^refactor"
+      order: 1
+    - title: 'Bug Fixes'
+      regexp: "^fix"
+      order: 2
+    - title: 'Dependency Updates'
+      regexp: "^chore\\(deps\\)"
+      order: 3
+    - title: 'Documentation'
+      regexp: "^docs"
+      order: 4
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
+      - '^chore:'
+      - 'merge'
+      - 'Initial commit'
 
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
