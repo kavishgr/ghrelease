@@ -24,11 +24,13 @@ func main() {
 		tempdir        = opts.TempDir
 		stdInUrls      = make(chan string)
 		jobs           sync.WaitGroup
-		version        = "0.1.3"
+		version        = "dev"
+		commit         = "none"
+		date           = "unknown"
 	)
 
 	if opts.Version {
-		fmt.Println("ghrelease version: ", version)
+		fmt.Printf("ghrelease version %s (commit %s, built at %s)\n", version, commit, date)
 		os.Exit(0)
 	}
 
