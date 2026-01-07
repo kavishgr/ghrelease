@@ -28,11 +28,10 @@ func Extractor(src, tempdir string) error {
 	format, stream, err := archives.Identify(ctx, src, reader)
 	if err != nil {
 		// Not a recognized archive format, might be a plain binary
-		// Check if file has no extension (plain binary)
-		if strings.IndexByte(filepath.Base(src), '.') == -1 {
-			return nil // Plain binary, nothing to extract
-		}
-		return fmt.Errorf("identifying archive format for %s: %w", src, err)
+		// If we can't identify it, just return nil.
+		// utils.Cleanup() will decide later if it's a binary worth keeping.
+		// test: if strings.IndexByte(filepath.Base(src), '.') == -1
+		return nil
 	}
 
 	// Check if format supports extraction
