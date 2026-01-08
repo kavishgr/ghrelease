@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
+	"net/http"
+	"time"
+
+	// "log"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,7 +15,6 @@ import (
 	"sync/atomic"
 
 	"github.com/kavishgr/ghrelease/utils"
-	// "github.com/schollz/progressbar/v3"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
@@ -20,20 +22,23 @@ import (
 var (
 	downloadedCount atomic.Int32
 	failedCount     atomic.Int32
+	logMu           sync.Mutex
 )
 
 const (
 	maxNameWidth int = 30
-	counterWidth int = 21 // Enough space for "xxx.xx MiB / xxx.xx MiB"
-	speedWidth   int = 12
 )
+
+func InitErrorLog(dir string) (*os.File, error) {
+	logPath := filepath.Join(dir, "error.log")
+	return os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+}
 
 func GetDownloadStats() (download, failed int32) {
 	return downloadedCount.Load(), failedCount.Load()
 }
 
-// DownloadReleases downloads release assets from URLs received via urlsChan.
-func (c *Client) DownloadReleases(p *mpb.Progress, ctx context.Context, urlsChan chan string, job *sync.WaitGroup, tempdir string, skipextraction bool) {
+func (c *Client) DownloadReleases(p *mpb.Progress, ctx context.Context, urlsChan chan string, job *sync.WaitGroup, tempdir string, skipextraction bool, logFile *os.File) {
 	defer job.Done()
 
 	downloadedCount.Store(0)
@@ -43,71 +48,103 @@ func (c *Client) DownloadReleases(p *mpb.Progress, ctx context.Context, urlsChan
 		file := path.Base(u)
 		src := filepath.Join(tempdir, file)
 
+		handleError := func(err error, stage string) {
+			failedCount.Add(1)
+			fmt.Fprintf(p, "✗ %-s (%s failed)\n", file, stage)
+			if logFile != nil {
+				logMu.Lock()
+				defer logMu.Unlock()
+				timestamp := time.Now().Format("2006-01-02 15:04:05")
+				fmt.Fprintf(logFile, "[%s] %s ERROR: %s -> %v\n", timestamp, stage, file, err)
+			}
+		}
+
 		req := c.craftRequest(u)
 		req = req.WithContext(ctx)
-
 		resp, err := c.httpClient.Do(req)
+
 		if err != nil {
 			if ctx.Err() == nil {
-				log.Printf("Failed to download %s: %v", file, err)
-				failedCount.Add(1)
+				handleError(err, "Download")
 			}
 			return
 		}
+
 		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			handleError(fmt.Errorf("server returned %s", resp.Status), "Download")
+			return
+		}
 
 		f, err := os.OpenFile(src, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
-			log.Printf("Failed to create file %s: %v", file, err)
-			failedCount.Add(1)
+			handleError(err, "File creation")
 			return
 		}
 		defer f.Close()
 
+		// For the PROGRESS BAR only, we truncate
 		displayFile := file
 		if len(file) > maxNameWidth {
 			displayFile = file[:maxNameWidth-3] + "..."
 		}
 
-		bar := p.AddBar(resp.ContentLength,
-			mpb.PrependDecorators(
-				// If DidentRight is undefined, use decor.W0 (zero width) or 0
-				// This aligns the name to the left and prevents compiler errors
-				decor.Name(displayFile+" ", decor.WC{W: maxNameWidth, C: 1}),
+		total := resp.ContentLength
+		queue := make([]*mpb.Bar, 2)
 
-				// Using Counters with the unit type first solves the conversion error
-				decor.Counters(decor.SizeB1024(0), "% .2f / % .2f", decor.WC{W: counterWidth, C: 1}),
+		// BAR 0: The Download Bar
+		queue[0] = p.AddBar(total,
+			mpb.PrependDecorators(
+				decor.Name(displayFile, decor.WC{W: maxNameWidth, C: 1}),
+				decor.Name("downloading", decor.WCSyncSpaceR),
+				decor.Counters(decor.SizeB1024(0), "% .2f / % .2f", decor.WCSyncWidth),
 			),
 			mpb.AppendDecorators(
-				// EwmaSpeed also needs the unit type first, then the format, then the age
-				decor.EwmaSpeed(decor.SizeB1024(0), "% .2f", 60, decor.WC{W: speedWidth, C: 2}),
+				decor.EwmaSpeed(decor.SizeB1024(0), "% .2f", 60, decor.WCSyncWidth),
 			),
+			mpb.BarRemoveOnComplete(), // HIDE when done
 		)
-		proxyReader := bar.ProxyReader(resp.Body)
-		defer proxyReader.Close()
 
+		// BAR 1: The Extraction Bar
+		queue[1] = p.AddBar(1,
+			mpb.BarQueueAfter(queue[0]),
+			mpb.BarFillerClearOnComplete(),
+			mpb.PrependDecorators(
+				decor.Name(displayFile, decor.WC{W: maxNameWidth, C: 1}),
+				decor.Name("extracting", decor.WCSyncSpaceR),
+			),
+			mpb.BarRemoveOnComplete(), // HIDE when done
+		)
+
+		proxyReader := queue[0].ProxyReader(resp.Body)
 		_, err = io.Copy(f, proxyReader)
+		proxyReader.Close()
+
 		if err != nil {
-			bar.Abort(true)
-			fmt.Fprintf(p, "\x1b[31m✘ Network error on %s: %v\x1b[0m\n", file, err)
-			failedCount.Add(1)
-		}
-
-		if skipextraction {
-			downloadedCount.Add(1)
+			queue[0].Abort(true)
+			queue[1].Abort(true)
+			handleError(err, "Network")
 			return
 		}
 
-		if err := utils.Extractor(src, tempdir); err != nil {
-			log.Printf("Extraction failed for %s: %v", file, err)
-			failedCount.Add(1)
-			return
+		if !skipextraction {
+			if err := utils.Extractor(src, tempdir); err != nil {
+				queue[1].Abort(true)
+				handleError(err, "Extraction")
+				return
+			}
 		}
+
+		//The bars vanish, and we print the FULL name
+		queue[1].Increment()
+
+		// This prints to the mpb container, above the remaining active bars
+		fmt.Fprintf(p, "✓ %-s\n", file)
 
 		downloadedCount.Add(1)
 	}
 
-	// iterate over urls sent by stdin
 	for u := range urlsChan {
 		select {
 		case <-ctx.Done():

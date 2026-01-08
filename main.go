@@ -5,14 +5,40 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/kavishgr/ghrelease/github"
 	"github.com/kavishgr/ghrelease/options"
 	"github.com/kavishgr/ghrelease/utils"
 	"github.com/vbauerster/mpb/v8"
+)
+
+func printSummary(elapsed time.Duration, tempdir string) {
+	downloaded, failed := github.GetDownloadStats()
+	elapsed = elapsed.Round(time.Millisecond)
+
+	fmt.Printf("\n%-12s %s\n", "Finished in:", elapsed)
+
+	summary := fmt.Sprintf("%d downloaded, %d failed", downloaded, failed)
+
+	// If there are failures, append the log location
+	if failed > 0 {
+		errorLogPath := filepath.Join(tempdir, "error.log")
+		summary = fmt.Sprintf("%s (see %s)", summary, errorLogPath)
+	}
+
+	fmt.Printf("%-12s %s\n", "Summary:", summary)
+}
+
+// Version information (set by goreleaser)
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
 
 func main() {
@@ -24,9 +50,6 @@ func main() {
 		tempdir        = opts.TempDir
 		stdInUrls      = make(chan string)
 		jobs           sync.WaitGroup
-		version        = "dev"
-		commit         = "none"
-		date           = "unknown"
 	)
 
 	if opts.Version {
@@ -49,7 +72,7 @@ func main() {
 
 	if err := client.ValidateToken(); err != nil {
 		fmt.Fprintf(os.Stderr, "Github token validation failed, %v\n", err)
-		fmt.Fprintln(os.Stderr, "Please check your toekn and try again.")
+		fmt.Fprintln(os.Stderr, "Please check your token and try again.")
 		os.Exit(1)
 	}
 
@@ -87,38 +110,47 @@ func main() {
 			os.Exit(1)
 		}
 
-		p := mpb.NewWithContext(ctx, mpb.WithOutput(os.Stderr))
+		logFile, err := github.InitErrorLog(tempdir)
+		if err != nil {
+			fmt.Printf("Warning: Could not create log in %s: %v\n", tempdir, err)
+		} else {
+			defer logFile.Close()
+		}
+
+		start := time.Now()
+
+		p := mpb.NewWithContext(
+			ctx,
+			mpb.WithRefreshRate(180*time.Millisecond),
+			mpb.WithOutput(os.Stderr),
+		)
 
 		for c := 0; c < opts.Concurrency; c++ {
 			jobs.Add(1)
-			go client.DownloadReleases(p, ctx, stdInUrls, &jobs, tempdir, skipextraction)
+			go client.DownloadReleases(p, ctx, stdInUrls, &jobs, tempdir, skipextraction, logFile)
 		}
 		jobs.Wait()
 		p.Wait()
-	}
 
-	// jobs.Wait() // wait for above jobs to finish
+		duration := time.Since(start)
 
-	// check if operation was cancelled
-	if ctx.Err() != nil {
-		fmt.Println("Operation cancelled. Partial files removed.")
-		os.Exit(130) // exit code for SIGINT
-	}
-
-	switch {
-	case opts.List:
-		return
-	case skipextraction:
-		fmt.Println("Archives saved in: ", tempdir)
-	default:
-		if err := utils.Cleanup(tempdir); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: cleanup failed in %s: %v\n", opts.TempDir, err)
+		// check if operation was cancelled
+		if ctx.Err() != nil {
+			fmt.Println("Operation cancelled. All files removed.")
+			os.RemoveAll(tempdir)
+			os.Exit(130) // exit code for SIGINT
 		}
+
 		fmt.Println()
-		fmt.Println("Binaries extracted to: ", tempdir)
+		printSummary(duration, tempdir)
+
+		if skipextraction {
+			fmt.Println("Archives saved in: ", tempdir)
+		} else {
+			if err := utils.Cleanup(tempdir); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: cleanup failed in %s: %v\n", opts.TempDir, err)
+			}
+			fmt.Println("Binaries extracted to: ", tempdir)
+		}
 	}
-	downloaded, failed := github.GetDownloadStats()
-	fmt.Println()
-	fmt.Printf("Summary: %d downloaded, %d failed\n", downloaded, failed)
-	fmt.Println()
 }

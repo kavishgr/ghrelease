@@ -102,6 +102,12 @@ func Cleanup(tempdir string) error {
 
 	for _, entry := range entries {
 		path := filepath.Join(tempdir, entry.Name())
+		filename := entry.Name()
+
+		// Skip the error log
+		if filename == "error.log" {
+			continue
+		}
 
 		if entry.IsDir() {
 			// Remove all subdirectories (binaries already moved out)
