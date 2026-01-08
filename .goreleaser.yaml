@@ -1,14 +1,7 @@
 version: 2
 
-project_name: ghrelease
-
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - id: ghrelease
-    binary: ghrelease
     env:
       - CGO_ENABLED=0
     goos:
@@ -24,54 +17,61 @@ builds:
       - -X main.date={{.Date}}
 
 archives:
-  - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+  - id: ghrelease
+    ids:
+      - ghrelease # Matches the build ID above
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     formats: [ 'tar.gz' ]
 
-brews:
+homebrew_casks:
   - name: ghrelease
+    ids:
+      - ghrelease
     repository:
       owner: kavishgr
       name: homebrew-tap
-    directory: Formula
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Casks
     homepage: "https://github.com/kavishgr/ghrelease"
-    description: "GitHub release downloader and extractor"
+    description: "Fetch and install the latest GitHub release assets automatically"
     license: "MIT"
-    # This matches the env variable we will set in release.yml
-    token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    
+    # Ensures the binary is linked correctly
+    binaries:
+      - ghrelease
 
-# Configures the GitHub release page
-release:
-  github:
-    owner: kavishgr
-    name: ghrelease
-  # 'auto' marks as pre-release if the tag has a suffix like -rc1
-  prerelease: auto
-  make_latest: true
+    #macOS security
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/ghrelease"]
+          end
+
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "Brew cask update for {{ .ProjectName }} version {{ .Tag }}"
 
 changelog:
   sort: asc
-  # Groups your commits into logical sections on GitHub
-  groups:
-    - title: 'New Features'
-      regexp: "^feat"
-      order: 0
-    - title: 'Refactors & Improvements'
-      regexp: "^refactor"
-      order: 1
-    - title: 'Bug Fixes'
-      regexp: "^fix"
-      order: 2
-    - title: 'Dependency Updates'
-      regexp: "^chore\\(deps\\)"
-      order: 3
-    - title: 'Documentation'
-      regexp: "^docs"
-      order: 4
   filters:
     exclude:
-      - '^chore:'
+      - '^docs:'
+      - '^test:'
       - 'merge'
-      - 'Initial commit'
-
-snapshot:
-  version_template: "{{ incpatch .Version }}-next"
+  groups:
+    - title: 'Features'
+      regexp: "^feat(\\(.*\\))?:.*"
+      order: 0
+    - title: 'Fixes'
+      regexp: "^fix(\\(.*\\))?:.*"
+      order: 1
+    - title: 'Refactor'
+      regexp: "^refactor(\\(.*\\))?:.*"
+      order: 2
+    - title: 'Internal'
+      regexp: "^chore(\\(.*\\))?:.*"
+      order: 3
+    - title: 'Others'
+      order: 999
