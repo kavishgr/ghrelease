@@ -1,29 +1,57 @@
 version: 2
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
-  -
-    ldflags:
-      - -s -w 
+  - id: ghrelease
     env:
       - CGO_ENABLED=0
-    id: ghrelease
-    binary: ghrelease
     goos:
       - linux
       - darwin
     goarch:
       - amd64
       - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
 
 archives:
-  - formats: [ 'tar.gz' ]
+  - id: ghrelease
+    ids:
+      - ghrelease # Matches the build ID above
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    formats: [ 'tar.gz' ]
 
-snapshot:
-  version_template: "{{ incpatch .Version }}"
+homebrew_casks:
+  - name: ghrelease
+    ids:
+      - ghrelease
+    repository:
+      owner: kavishgr
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Casks
+    homepage: "https://github.com/kavishgr/ghrelease"
+    description: "Fetch and install the latest GitHub release assets automatically"
+    license: "MIT"
+    
+    # Ensures the binary is linked correctly
+    binaries:
+      - ghrelease
+
+    #macOS security
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/ghrelease"]
+          end
+
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "Brew cask update for {{ .ProjectName }} version {{ .Tag }}"
 
 changelog:
   sort: asc
@@ -31,4 +59,19 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
-
+      - 'merge'
+  groups:
+    - title: 'Features'
+      regexp: "^feat(\\(.*\\))?:.*"
+      order: 0
+    - title: 'Fixes'
+      regexp: "^fix(\\(.*\\))?:.*"
+      order: 1
+    - title: 'Refactor'
+      regexp: "^refactor(\\(.*\\))?:.*"
+      order: 2
+    - title: 'Internal'
+      regexp: "^chore(\\(.*\\))?:.*"
+      order: 3
+    - title: 'Others'
+      order: 999
