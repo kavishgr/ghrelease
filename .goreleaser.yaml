@@ -75,3 +75,7 @@ changelog:
       order: 3
     - title: 'Others'
       order: 999
+
+release:
+  prerelease: auto
+  make_latest: true
