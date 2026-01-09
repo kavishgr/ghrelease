@@ -214,7 +214,7 @@ It is useful for releases that require dependencies bundled together in separate
 
 **Why did I create this tool instead of using a package manager?** 
 
-- Brew bloat is real: Sometimes you just want a simple tool, but brew tries to install half of the internet as dependencies. For example, eza (the modern ls) can pull in over 2GB of stuff, which is wild.
+- Brew bloat is real: Sometimes you just want a simple tool, but brew tries to install half of the internet as dependencies. For example, eza (the modern ls) can pull in over 2GB of stuff, which is wild(as of this writing).
 
 - Some projects don't have the right macOS aarch64 binaries ready to go, or they aren't on package managers at all.
 
