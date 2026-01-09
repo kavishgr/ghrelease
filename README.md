@@ -102,7 +102,7 @@ echo "sharkdp/bat" | ghrelease -list | sort
 
 #### Demo
 
-![-list](examples/list-flag.jpg)
+![-list](examples/list-demo.gif)
 
 
 This will display a list of URLs representing the latest release assets found for each repository.
@@ -153,7 +153,7 @@ Before using `-download`, remove any lines starting with 'N/A' from the list of 
 
 #### Demo
 
-![-download](examples/download-flag.jpg)
+![-download](examples/download-demo.gif)
 
 
 In the example above, you can observe that the `ClementTsang/bottom` package had two releases due to different versions of GNU. However, the tool only retained one version. You can filter out these additional releases. I included them here for the purpose of this example.
@@ -180,7 +180,7 @@ It is useful for releases that require dependencies bundled together in separate
 
 #### Demo
 
-![-skipextraction](examples/skipextraction-flag.jpg)
+![-skipextraction](examples/skipextraction-demo.gif)
 
 ## TODO
 
