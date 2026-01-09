@@ -24,11 +24,16 @@ func printSummary(elapsed time.Duration, tempdir string) {
 	fmt.Printf("\n%-12s %s\n", "Finished in:", elapsed)
 
 	summary := fmt.Sprintf("%d downloaded, %d failed", downloaded, failed)
+	errorLogPath := filepath.Join(tempdir, "error.log")
 
 	// If there are failures, append the log location
 	if failed > 0 {
-		errorLogPath := filepath.Join(tempdir, "error.log")
 		summary = fmt.Sprintf("%s (see %s)", summary, errorLogPath)
+	} else {
+		// remove empty log file
+		// _ = means this might return an error if file don't exist
+		// it's not an issue
+		_ = os.Remove(errorLogPath)
 	}
 
 	fmt.Printf("%-12s %s\n", "Summary:", summary)
