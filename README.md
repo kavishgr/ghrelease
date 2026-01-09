@@ -8,6 +8,14 @@ You can also choose to skip the extraction and keep the archive.
 
 ## Installation
 
+### Brew
+
+```sh
+in progress.....
+```
+
+### Manual Installation
+
 Download the latest binary from the [releases](https://github.com/kavishgr/ghrelease/releases) section and place it in your `$PATH`. 
 
 ### Dependencies
@@ -67,23 +75,47 @@ ghrelease -h
 
 All the supported flags:
 
-```sh
--list    list all the releases found
-            Will print the latest release for your OS and Architecture.
+```shell
+  -list, -l
 
--con     <int> set the concurrency level (default: 2)
+	Will list all the release/releases found for your OS and Architecture.
 
--download will download and extract the binary inside `/tmp/ghrelease`
-            Example: cat urls_from_list_results.txt | ghrelease -download 
+	Example: cat urls.txt | getghrel -l | sort
+	Example: echo 'https://github.com/sharkdp/bat' | getghrel -list | sort
+	Example: echo 'sharkdp/bat' | getghrel -list | sort
 
--skipextraction skip the extraction process
-	 Example: echo "helix-editor/helix" | ghrelease -list | getghrel -download -skipextraction
+  -con, -c
 
--tempdir <string> specify a temporary directory to download/extract the binaries
-            Default is `/tmp/ghrelease`
-            Example: cat urls_from_list_results.txt | ghrelease -download -tempdir /tmp/test
+	 Set the concurrency level (default: 2)
 
--version display version
+	 Example: cat urls.txt | getghrel -list -con 3 | tee releases.txt
+	 Example: cat releases.txt | getghrel -download -con 3
+
+  -download, -d
+
+	 Download the releases
+	 Default directory in which the release will be downloaded is '/tmp/getghrel'
+	 If the release is compressed or in an archive format, the tool will automatically
+	 extract and unpack it no matter how it's compressed or archived
+	 and keep only the binary.
+
+	 Example: cat releases.txt | getghrel -download
+	 Example: cat releases.txt | getghrel -download -tempdir '/tmp/test'
+
+  -skipextraction, -s
+
+	 Skip the extraction/unpack process
+
+	 Example: echo "neovim/neovim" | getghrel -list | getghrel -download -skipextraction
+
+  -tempdir, -t
+
+	 Specify a temporary directory to download/extract the binaries
+
+	 Example: cat releases.txt | getghrel -download -tempdir '/tmp/test'
+
+  -version, -v
+	 Print version
 ```
 
 ### List Found Releases
@@ -111,14 +143,6 @@ In rare cases, you may come across additional files like checksums and SBOMs tha
 
 In the case of `N/A`(not available), it means that the repository doesn't have any release assets available. For Linux releases, there might be separate versions for both GNU and Musl. You can choose to filter them out based on your preferences.
 
-> **Note**: In the example above, the first line shows that the 'neovim' package is unavailable. But neovim does have a latest release. The reason it's not listed is because my regex always checks for assets containing both the OS and architecture, while neovim's assets only specify the OS. There are ways to resolve this issue, but it involves dealing with regex, which can be a bit complex. Nevertheless, you can be confident that every release will be discoverable, except for this particular case.
-
->> **update**: On macOS, Neovim is now being listed because the release includes the OS and arch:
-
-```
-➜  ~ echo "neovim/neovim" | ghrelease -list
-https://github.com/neovim/neovim/releases/download/v0.10.0/nvim-macos-arm64.tar.gz
-```
 Duplicates are unlikely, but if they do occur, you can easily filter them out using tools like `sort` and `uniq`. That should do the trick.
 
 In case a repository lacks a latest release tag, the tool will search for the most recent release tag instead. In rare cases this can be an unstable/nightly release.
@@ -149,14 +173,14 @@ cat releases.txt | ghrelease -download -con 3
 echo "https://github.com/sharkdp/bat" | ghrelease -list | getghrel -download
 ```
 
-Before using `-download`, remove any lines starting with 'N/A' from the list of found assets, like shown below.
+Before using `-download`, remove any lines starting with 'N/A' from the list of found assets.
 
 #### Demo
 
 ![-download](examples/download-demo.gif)
 
 
-In the example above, you can observe that the `ClementTsang/bottom` package had two releases due to different versions of GNU. However, the tool only retained one version. You can filter out these additional releases. I included them here for the purpose of this example.
+On Linux packages may have multiple releases due to different versions of GNU and musl. However, the tool only retained one version. You can filter out these additional releases.
 
 To download to a different location, use the `-tempdir` flag :
 
@@ -184,9 +208,14 @@ It is useful for releases that require dependencies bundled together in separate
 
 ## TODO
 
-- **Optional**: update the regex or add some sort of backup/rescue regex to include releases that contain only the operating system and not the architecture. Most releases do include both the OS and architecture, I'm mentioning it here because of the neovim(solved now) issue discussed earlier.
+- **Optional**: update the regex or add some sort of backup/rescue regex to include releases that contain only the operating system and not the architecture. Most releases do include both the OS and architecture, I'm mentioning it here because of neovim(solved now).
 
 ## FAQ
 
 **Why did I create this tool instead of using a package manager?** 
 
+- Brew bloat is real: Sometimes you just want a simple tool, but brew tries to install half of the internet as dependencies. For example, eza (the modern ls) can pull in over 2GB of stuff, which is wild.
+
+- Some projects don't have the right macOS aarch64 binaries ready to go, or they aren't on package managers at all.
+
+- If you're on an immutable Linux distro, sometimes you just need a binary right now without firing up a container and installing a bunch of stuff.
