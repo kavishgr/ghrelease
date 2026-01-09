@@ -11,7 +11,8 @@ You can also choose to skip the extraction and keep the archive.
 ### Brew
 
 ```sh
-in progress.....
+brew tap kavishgr/homebrew-tap
+brew install --cask ghrelease
 ```
 
 ### Manual Installation
