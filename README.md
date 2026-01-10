@@ -21,7 +21,14 @@ Download the latest binary from the [releases](https://github.com/kavishgr/ghrel
 
 ### Dependencies
 
-A GitHub personal access token is required.
+A GitHub personal access token is required. The token is validated on startup.
+
+**Required Scopes**: `public_repo` (for public repos) or `repo` (for private repos)
+
+**Common Errors**:
+- `401 Unauthorized`: Invalid or expired token - generate a new one
+- `403 Forbidden`: Valid token but lacks required permissions - check token scopes
+- Network errors: Check your internet connection or GitHub API status
 
 <details>
 <summary>Set the token</summary>
@@ -138,28 +145,15 @@ echo "sharkdp/bat" | ghrelease -list | sort
 ![-list](examples/list-demo.gif)
 
 
-This will display a list of URLs representing the latest release assets found for each repository.
+This will display a list of URLs representing the latest release assets found for each repository for your current OS and Architecture.
 
 In rare cases, you may come across additional files like checksums and SBOMs that are specific to your operating system and architecture. I have taken care to exclude them in the regular expression. However, if any such files exist, you can simply filter them out before using the `-download` flag to ensure a clean download. But don't worry, even if you don't filter the output, the tool will automatically keep only the binaries and remove any unnecessary files. Filtering them out can help save bandwidth.
 
-In the case of `N/A`(not available), it means that the repository doesn't have any release assets available. For Linux releases, there might be separate versions for both GNU and Musl. You can choose to filter them out based on your preferences.
+**Note**: When you see `N/A`(not available), it means the repo doesn't have any release assets matching your specific OS and Architecture. For Linux, you might see separate versions for GNU and Musl. You can filter these results using good ole `grep`.
 
 Duplicates are unlikely, but if they do occur, you can easily filter them out using tools like `sort` and `uniq`. That should do the trick.
 
-In case a repository lacks a latest release tag, the tool will search for the most recent release tag instead. In rare cases this can be an unstable/nightly release.
-
-### GitHub Token
-
-A GitHub personal access token is required to use this tool. The token is validated on startup.
-
-**Required Scopes**: `public_repo` (for public repos) or `repo` (for private repos)
-
-**Common Errors**:
-- `401 Unauthorized`: Invalid or expired token - generate a new one
-- `403 Forbidden`: Valid token but lacks required permissions - check token scopes
-- Network errors: Check your internet connection or GitHub API status
-
-Generate a token at: https://github.com/settings/tokens
+In case a repository lacks a latest release tag, the tool will search for the most recent release tag instead. 
 
 ### Download Found Assets
 
@@ -180,17 +174,14 @@ Before using `-download`, remove any lines starting with 'N/A' from the list of 
 
 ![-download](examples/download-demo.gif)
 
-
-On Linux packages may have multiple releases due to different versions of GNU and musl. However, the tool only retained one version. You can filter out these additional releases.
-
-To download to a different location, use the `-tempdir` flag :
+To download to a different location, use the `-tempdir` or `-t` flag :
 
 ```sh
 # List of URLS
 cat releases.txt | ghrelease -download -tempdir '/tmp/tempbin'
 
 # Single one
-echo "https://github.com/sharkdp/bat" | ghrelease -list | getghrel -download -tempdir '/tmp/tempbin'
+echo "https://github.com/sharkdp/bat" | ghrelease -l | getghrel -d -t '/tmp/tempbin'
 ```
 
 ### Skip Extraction
@@ -198,7 +189,9 @@ echo "https://github.com/sharkdp/bat" | ghrelease -list | getghrel -download -te
 To keep the archive or compressed release, simply use the `-skipextraction` option:
 
 ```sh
-echo "helix-editor/helix" | ghrelease -list | getghrel -skipextraction -download
+echo "helix-editor/helix" | ghrelease -l | getghrel -s -d
+
+echo "neovim/neovim" | ghrelease -l | getghrel -s -d
 ```
 
 It is useful for releases that require dependencies bundled together in separate files or folders, rather than just a single binary.
@@ -209,13 +202,15 @@ It is useful for releases that require dependencies bundled together in separate
 
 ## TODO
 
-- **Optional**: update the regex or add some sort of backup/rescue regex to include releases that contain only the operating system and not the architecture. Most releases do include both the OS and architecture, I'm mentioning it here because of neovim(solved now).
+- **Optional**: add some sort of backup/rescue regex to include releases that contain only the operating system and not the architecture. Most releases do include both the OS and architecture, I'm mentioning it here because of neovim had that issue for macOS(solved now).
+
+[ ] Fallback Logic: Add a "rescue" regex for releases that only contain the OS but skip the architecture in the filename. Neovim used to do this for macOS (e.g., nvim-macos.tar.gz), they now include both OS and ARCH.
 
 ## FAQ
 
 **Why did I create this tool instead of using a package manager?** 
 
-- Brew bloat is real: Sometimes you just want a simple tool, but brew tries to install half of the internet as dependencies. For example, eza (the modern ls) can pull in over 2GB of stuff, which is wild(as of this writing).
+- Brew bloat is real: Sometimes you just want a simple tool, but some formula tries to install half of the internet as dependencies. For example, eza (the modern ls) can pull in over 2GB of stuff, which is wild(as of this writing).
 
 - Some projects don't have the right macOS aarch64 binaries ready to go, or they aren't on package managers at all.
 
