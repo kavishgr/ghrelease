@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-// ScanStdIn reads lines from standard input and sends each line to the apiUrl channel.
-// The channel is closed when EOF is reached or an error occurs.
 func ScanStdIn(urls chan<- string) {
 	defer close(urls)
 	scanner := bufio.NewScanner(os.Stdin)

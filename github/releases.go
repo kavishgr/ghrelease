@@ -25,7 +25,6 @@ var httpClient = &http.Client{
 	},
 }
 
-// isValidURL checks if the provided string is a valid HTTP/HTTPS GitHub URL.
 func isValidURL(rawURL string) bool {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -36,9 +35,6 @@ func isValidURL(rawURL string) bool {
 		strings.Contains(u.Host, "github.com")
 }
 
-// fixUrl converts a GitHub repository reference into a GitHub API URL for releases.
-// Accepts either a full URL (https://github.com/owner/repo) or short form (owner/repo).
-// Returns the API URL and the repository path.
 func fixUrl(githubUrl string) (string, string) {
 	apiDomain := "https://api.github.com/repos"
 	apiDomainSuffix := "/releases/latest"
@@ -54,8 +50,6 @@ func fixUrl(githubUrl string) (string, string) {
 	return result, fortag
 }
 
-// split extracts the owner and repository name from "owner/repo" format.
-// Returns empty strings if the format is invalid.
 func split(ownerNrepo string) (string, string) {
 	ownerNrepo = strings.TrimPrefix(ownerNrepo, "/")
 	parts := strings.Split(ownerNrepo, "/")
@@ -77,18 +71,14 @@ func (c *Client) getTagByName(ownerNrepo string) ([]byte, error) {
 		return nil, fmt.Errorf("invalid repository format: %s", ownerNrepo)
 	}
 
-	// Create an OAuth2 token source
 	src := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: c.token},
 	)
 
-	// Create an HTTP client with the token source
 	oauthClient := oauth2.NewClient(context.Background(), src)
 
-	// Create a new GitHub GraphQL client
 	gqlClient := githubv4.NewClient(oauthClient)
 
-	// Define the GraphQL query
 	var query struct {
 		Repository struct {
 			Refs struct {
@@ -101,7 +91,6 @@ func (c *Client) getTagByName(ownerNrepo string) ([]byte, error) {
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
 
-	// Set the query variables
 	variables := map[string]interface{}{
 		"owner":     githubv4.String(owner),
 		"name":      githubv4.String(name),
@@ -113,13 +102,11 @@ func (c *Client) getTagByName(ownerNrepo string) ([]byte, error) {
 		},
 	}
 
-	// Execute the GraphQL query
 	err := gqlClient.Query(context.Background(), &query, variables)
 	if err != nil {
 		return nil, fmt.Errorf("GraphQL query failed: %w", err)
 	}
 
-	// Access the query result
 	if len(query.Repository.Refs.Edges) == 0 {
 		return nil, fmt.Errorf("no tags found for %s", ownerNrepo)
 	}
@@ -142,9 +129,6 @@ func (c *Client) getTagByName(ownerNrepo string) ([]byte, error) {
 	return body, nil
 }
 
-// FetchGithubReleaseUrl fetches download URLs for release assets that match
-// the OS/architecture regex pattern. Reads repository URLs from urlsChan and
-// outputs matching asset URLs to stdout.
 func (c *Client) FetchGithubReleaseURLs(ctx context.Context, urlsChan chan string, job *sync.WaitGroup) {
 	defer job.Done()
 
@@ -189,7 +173,6 @@ func (c *Client) fetchAndFilter(ctx context.Context, u string) {
 		}
 	}
 
-	// fetch all the browser_download_url keys which contains the asset urls
 	// results := gjson.Get(fmt.Sprintf("%s", body), "assets.#.browser_download_url")
 	results := gjson.Get(string(body), "assets.#.browser_download_url")
 

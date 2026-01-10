@@ -84,7 +84,6 @@ func (c *Client) DownloadReleases(p *mpb.Progress, ctx context.Context, urlsChan
 		}
 		defer f.Close()
 
-		// For the PROGRESS BAR only, we truncate
 		displayFile := file
 		if len(file) > maxNameWidth {
 			displayFile = file[:maxNameWidth-3] + "..."
@@ -92,8 +91,7 @@ func (c *Client) DownloadReleases(p *mpb.Progress, ctx context.Context, urlsChan
 
 		total := resp.ContentLength
 		queue := make([]*mpb.Bar, 2)
-
-		// BAR 0: The Download Bar
+		// download bar
 		queue[0] = p.AddBar(total,
 			mpb.PrependDecorators(
 				decor.Name(displayFile, decor.WC{W: maxNameWidth, C: 1}),
@@ -105,8 +103,7 @@ func (c *Client) DownloadReleases(p *mpb.Progress, ctx context.Context, urlsChan
 			),
 			mpb.BarRemoveOnComplete(), // HIDE when done
 		)
-
-		// BAR 1: The Extraction Bar
+		// extraction bar
 		queue[1] = p.AddBar(1,
 			mpb.BarQueueAfter(queue[0]),
 			mpb.BarFillerClearOnComplete(),
@@ -136,10 +133,9 @@ func (c *Client) DownloadReleases(p *mpb.Progress, ctx context.Context, urlsChan
 			}
 		}
 
-		//The bars vanish, and we print the FULL name
+		// remove bar and print filename
 		queue[1].Increment()
 
-		// This prints to the mpb container, above the remaining active bars
 		fmt.Fprintf(p, "✓ %-s\n", file)
 
 		downloadedCount.Add(1)

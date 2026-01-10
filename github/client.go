@@ -45,7 +45,7 @@ func NewClient(token, os, arch string) (*Client, error) {
 func (c *Client) craftRequest(url string) *http.Request {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		// This should never fail for valid URLs, but handle it anyway
+		// This should never fail for valid URLs
 		panic(fmt.Sprintf("creating request: %v", err))
 	}
 	req.Header.Add("Authorization", fmt.Sprintf("token %s", c.token))

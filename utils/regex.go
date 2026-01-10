@@ -4,24 +4,7 @@ import (
 	"log"
 )
 
-// SetRegex returns a regex pattern for matching release assets based on the
-// operating system and architecture. The pattern filters out checksums, SBOMs,
-// package files, and releases for other platforms.
 func SetRegex(ost, arch string) string {
-	// Pattern breakdown:
-	// (?i) - case insensitive
-	// (?=.*pattern) - positive lookahead (must contain)
-	// (?!.*pattern) - negative lookahead (must NOT contain)
-
-	// Files to EXCLUDE:
-	// - Checksums: .sha256, .sha256sum, checksums.txt
-	// - SBOMs: .sbom
-	// - Package formats: .rpm, .deb
-	// - Other OSes: windows, freebsd, netbsd, openbsd, android
-
-	// for android:
-	// android-tools-macos-arm64.tar.gz  Matches (android is just in the name)
-	// tool-android-aarch64.tar.gz  Excluded (android OS target)
 
 	const (
 		excludeCommon   = `(?!.*(?:\.sha256sum|\.sha256|\.sbom|checksums|\.txt))`
@@ -31,8 +14,6 @@ func SetRegex(ost, arch string) string {
 
 	switch {
 	case ost == "darwin" && arch == "amd64":
-		// Must contain: (apple|darwin|macos|mac) AND (amd64|x86_64|x64)
-		// Must NOT contain: other OSes, checksums, packages
 		return `(?i)` +
 			`(?=.*(?:apple|darwin|macos|mac))` +
 			`(?=.*(?:amd64|x86_64|x64))` +
@@ -41,7 +22,6 @@ func SetRegex(ost, arch string) string {
 			`.*`
 
 	case ost == "linux" && arch == "amd64":
-		// Must contain: linux AND (amd64|x86_64|x64)
 		return `(?i)` +
 			`(?=.*linux)` +
 			`(?=.*(?:amd64|x86_64|x64))` +
