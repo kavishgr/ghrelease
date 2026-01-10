@@ -202,7 +202,7 @@ It is useful for releases that require dependencies bundled together in separate
 
 ## TODO
 
-[ ] Fallback Logic: Add a "rescue" regex for releases that only contain the OS but skip the architecture in the filename. Neovim used to do this for macOS (e.g., nvim-macos.tar.gz), they now include both OS and ARCH. [yt-dlp](https://github.com/yt-dlp/yt-dlp) is another example.
+- [ ] Fallback Logic: Add a "rescue" regex for releases that only contain the OS but skip the architecture in the filename. Neovim used to do this for macOS (e.g., nvim-macos.tar.gz), they now include both OS and ARCH. [yt-dlp](https://github.com/yt-dlp/yt-dlp) is another example.
 
 ## FAQ
 
